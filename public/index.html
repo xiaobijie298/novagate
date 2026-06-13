@@ -192,6 +192,25 @@
     <h1>Buy & Test API Tokens</h1>
     <p class="subtitle">Choose a plan, get your token, then test it right here.</p>
 
+    <!-- 免费试用横幅 -->
+    <div id="freeTrialBanner" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid var(--accent);border-radius:14px;padding:20px;text-align:center;margin-bottom:28px;">
+      <div id="trialCta">
+        <div style="font-size:28px;margin-bottom:8px;">🎁</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Free Trial — Get 10,000 tokens FREE!</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">No credit card required. Try NovaGate in 10 seconds.</div>
+        <button class="btn btn-accent btn-lg" onclick="claimFreeTrial()">🚀 Claim Free Trial</button>
+        <div style="font-size:11px;color:var(--text2);margin-top:8px;">One trial per IP per 24 hours · คนขายของรีบเลย!</div>
+      </div>
+      <div id="trialResult" style="display:none;">
+        <div style="font-size:36px;margin-bottom:8px;">✅</div>
+        <div style="font-size:15px;font-weight:700;color:var(--success);margin-bottom:8px;">Trial Activated!</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">Save your API token:</div>
+        <div style="background:var(--bg);border:1px solid var(--success);border-radius:8px;padding:10px;font-family:monospace;font-size:13px;word-break:break-all;margin-bottom:10px;" id="trialTokenValue"></div>
+        <div style="font-size:11px;color:var(--warning);margin-bottom:14px;">⚠️ This token cannot be recovered. Save it now!</div>
+        <button class="btn btn-sm btn-secondary" onclick="goToTestTab()">🧪 Test Now</button>
+      </div>
+    </div>
+
     <!-- 三个标签 -->
     <div class="mode-tabs">
       <button class="mode-tab active" onclick="switchMode('membership', this)">🎫 Membership</button>
@@ -665,6 +684,35 @@
         history.replaceState(null, '', location.pathname);
       }
     })();
+
+    // ============ 免费试用 ============
+    function claimFreeTrial() {
+      var cta = $('trialCta');
+      var result = $('trialResult');
+      cta.innerHTML = '<div style="font-size:13px;color:var(--text2);">Creating your free account...</div>';
+      api('/api/free-trial', { method: 'POST' })
+        .then(function(data) {
+          cta.style.display = 'none';
+          result.style.display = '';
+          $('trialTokenValue').textContent = data.token;
+          $('testToken').value = data.token;
+          toast('🎁 ' + (data.th || data.message), 'success');
+        })
+        .catch(function(e) {
+          var errMsg = e.message || '';
+          cta.innerHTML = '<div style="font-size:28px;margin-bottom:8px;">🎁</div>' +
+            '<div style="font-size:16px;font-weight:700;margin-bottom:6px;">Free Trial — Get 10,000 tokens FREE!</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-bottom:14px;">No credit card required.</div>' +
+            '<button class="btn btn-accent btn-lg" onclick="claimFreeTrial()">🚀 Claim Free Trial</button>' +
+            '<div style="font-size:11px;color:var(--text2);margin-top:8px;">' + errMsg + '</div>';
+          toast('Error: ' + errMsg, 'error');
+        });
+    }
+
+    function goToTestTab() {
+      switchMode('test', document.querySelector('.mode-tab[onclick*="test"]'));
+      setTimeout(function() { $('testToken').focus(); }, 300);
+    }
   </script>
 </body>
 </html>

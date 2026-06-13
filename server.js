@@ -5,11 +5,17 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
+app.set('trust proxy', true);  // 支持 Railway 等反向代理获取真实 IP
 const PORT = process.env.PORT || 3000;
 const QWEN_API_KEY = process.env.QWEN_API_KEY;
 const QWEN_ENDPOINT = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 const USERS_FILE = path.join(__dirname, 'users.json');
 const LOGS_FILE = path.join(__dirname, 'logs.json');
+
+// ============ 免费试用配置 ============
+const TRIAL_CLAIMS = new Map(); // ip -> timestamp
+const TRIAL_QUOTA = 10000;     // 试用额度：1万 tokens
+const TRIAL_WINDOW_MS = 24 * 60 * 60 * 1000; // 24小时内每IP限领1次
 
 // ============ 支付配置 ============
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
@@ -165,6 +171,37 @@ app.get('/api/pricing', (req, res) => {
     tokens_per_baht_base: 10000,
     plans,
     tiers: getPricingTable()
+  });
+});
+
+// ============ 免费试用 ============
+app.post('/api/free-trial', (req, res) => {
+  const rawIp = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  const ip = String(rawIp).split(',')[0].trim();
+  const now = Date.now();
+
+  // 24小时内每IP限领1次
+  if (TRIAL_CLAIMS.has(ip)) {
+    const last = TRIAL_CLAIMS.get(ip);
+    if (now - last < TRIAL_WINDOW_MS) {
+      const hrs = Math.ceil((TRIAL_WINDOW_MS - (now - last)) / 3_600_000);
+      return res.status(429).json({
+        error: `Free trial already claimed. Try again in ${hrs} hour(s).`,
+        th: `เรียกใช้รุ่นทดลองฟรีแล้ว กรุณาลองอีกครั้งในอีก ${hrs} ชั่วโมง`
+      });
+    }
+  }
+
+  const user = createUser(TRIAL_QUOTA, `trial_${ip.replace(/[^a-zA-Z0-9]/g, '_')}`);
+  TRIAL_CLAIMS.set(ip, now);
+  writeLog({ type: 'trial', action: 'free_trial_claimed', user_id: user.id, ip });
+
+  res.json({
+    token: user.token,
+    quota: TRIAL_QUOTA,
+    user_id: user.id,
+    message: 'Free trial activated! 10,000 tokens granted.',
+    th: 'รุ่นทดลองฟรีเปิดใช้งานแล้ว! ได้รับ 10,000 tokens'
   });
 });
 
