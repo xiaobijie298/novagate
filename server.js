@@ -68,7 +68,7 @@ function calculateQuota(amountThb) {
   else if (amount >= 2000)  tokensPerBaht = 14000;
   else if (amount >= 1000)  tokensPerBaht = 13000;
   else if (amount >= 500)   tokensPerBaht = 12000;
-  else if (amount >= 200)   tokensPerBaht = 11000;
+  else if (amount >= 300)   tokensPerBaht = 11000;
   else if (amount >= 100)   tokensPerBaht = 10000;
   else                       tokensPerBaht = 9000;   // 50-99 THB
   const quota = Math.floor(amount * tokensPerBaht);
@@ -81,7 +81,7 @@ function calculateQuota(amountThb) {
 }
 
 function getPricingTable() {
-  return [50, 100, 200, 500, 1000, 2000, 5000].map(t => calculateQuota(t));
+  return [50, 100, 300, 500, 1000, 2000, 5000].map(t => calculateQuota(t));
 }
 
 // ============ 中间件 ============

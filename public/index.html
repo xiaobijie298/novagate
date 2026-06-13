@@ -241,14 +241,15 @@
           <input type="number" id="paygoAmount" min="50" step="50" value="50"
                  oninput="updateQuotaPreview()" placeholder="最少 ฿50" />
         </div>
-        <div class="quick-amounts">
+        <div class="quick-amounts" id="quickAmounts">
           <button class="quick-amt active" onclick="setAmount(50,this)">฿50</button>
           <button class="quick-amt" onclick="setAmount(100,this)">฿100</button>
-          <button class="quick-amt" onclick="setAmount(200,this)">฿200</button>
+          <button class="quick-amt" onclick="setAmount(300,this)">฿300</button>
           <button class="quick-amt" onclick="setAmount(500,this)">฿500</button>
           <button class="quick-amt" onclick="setAmount(1000,this)">฿1,000</button>
           <button class="quick-amt" onclick="setAmount(2000,this)">฿2,000</button>
           <button class="quick-amt" onclick="setAmount(5000,this)">฿5,000</button>
+          <button class="quick-amt" onclick="focusCustomAmount()" id="btnCustom" style="border-style:dashed;">✏️ 自定义</button>
         </div>
 
         <div class="quota-preview" id="quotaPreview">
@@ -260,8 +261,8 @@
         <div class="tier-table">
           <div class="ttitle">📊 阶梯单价表</div>
           <div class="tier-row"><span class="tier-amt">฿50 – 99</span><span class="tier-tokens">9,000 / ฿1</span></div>
-          <div class="tier-row"><span class="tier-amt">฿100 – 199</span><span class="tier-tokens">10,000 / ฿1</span></div>
-          <div class="tier-row"><span class="tier-amt">฿200 – 499</span><span class="tier-tokens">11,000 / ฿1</span></div>
+          <div class="tier-row"><span class="tier-amt">฿100 – 299</span><span class="tier-tokens">10,000 / ฿1</span></div>
+          <div class="tier-row"><span class="tier-amt">฿300 – 499</span><span class="tier-tokens">11,000 / ฿1</span></div>
           <div class="tier-row"><span class="tier-amt">฿500 – 999</span><span class="tier-tokens">12,000 / ฿1</span></div>
           <div class="tier-row"><span class="tier-amt">฿1,000 – 1,999</span><span class="tier-tokens">13,000 / ฿1</span></div>
           <div class="tier-row"><span class="tier-amt">฿2,000 – 4,999</span><span class="tier-tokens">14,000 / ฿1</span></div>
@@ -447,6 +448,20 @@
     function updateQuotaPreview() {
       var amt = Number($('paygoAmount').value) || 0;
       paygoAmount = amt;
+      // 清除快速按钮 active（手动输入时不匹配预设按钮）
+      var btns = document.querySelectorAll('#quickAmounts .quick-amt');
+      var matched = false;
+      for (var i = 0; i < btns.length; i++) {
+        var onclick = btns[i].getAttribute('onclick') || '';
+        var m = onclick.match(/setAmount\((\d+)/);
+        if (m && Number(m[1]) === amt) {
+          btns[i].classList.add('active');
+          matched = true;
+        } else {
+          btns[i].classList.remove('active');
+        }
+      }
+      if (!matched) { $('btnCustom').classList.add('active'); }
       if (amt < 50) {
         $('quotaValue').textContent = '最少 ฿50';
         $('quotaRate').textContent = '';
@@ -455,6 +470,14 @@
       var result = calcTokens(amt);
       $('quotaValue').textContent = Number(result.tokens).toLocaleString() + ' tokens';
       $('quotaRate').textContent = '单价：฿1 = ' + Number(result.rate).toLocaleString() + ' tokens';
+    }
+
+    function focusCustomAmount() {
+      $('paygoAmount').value = '';
+      $('paygoAmount').focus();
+      var btns = document.querySelectorAll('#quickAmounts .quick-amt');
+      for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+      $('btnCustom').classList.add('active');
     }
 
     function calcTokens(amountBaht) {
