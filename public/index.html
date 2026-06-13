@@ -42,7 +42,7 @@
     .mode-section.active { display: block; }
 
     /* 套餐卡片 */
-    .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+    .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
     .plan-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
       padding: 22px 16px; text-align: center; cursor: pointer; transition: all .15s;
@@ -223,7 +223,7 @@
       <div class="plans-grid" id="plansGrid"></div>
         <div style="text-align:center;">
           <button class="btn btn-warning btn-lg" style="min-width:200px;" id="buyPlanBtn" onclick="openModal()">💳 Buy Tokens Now</button>
-          <div style="font-size:11px;color:var(--text2);margin-top:6px;" id="planHint">Selected: Pro Plan ⭐</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:6px;" id="planHint">Selected: Starter Plan 🆕</div>
           <div style="margin-top:12px;">
             <button class="btn btn-sm" style="background:var(--surface2);color:var(--accent);border:1px dashed var(--accent);" onclick="simulateDelivery(false)">📦 预览交付界面</button>
           </div>
@@ -238,13 +238,14 @@
 
         <div class="form-group">
           <label>充值金额（฿ THB）</label>
-          <input type="number" id="paygoAmount" min="100" step="100" value="500"
-                 oninput="updateQuotaPreview()" placeholder="最少 ฿100" />
+          <input type="number" id="paygoAmount" min="50" step="50" value="50"
+                 oninput="updateQuotaPreview()" placeholder="最少 ฿50" />
         </div>
         <div class="quick-amounts">
+          <button class="quick-amt active" onclick="setAmount(50,this)">฿50</button>
           <button class="quick-amt" onclick="setAmount(100,this)">฿100</button>
           <button class="quick-amt" onclick="setAmount(200,this)">฿200</button>
-          <button class="quick-amt active" onclick="setAmount(500,this)">฿500</button>
+          <button class="quick-amt" onclick="setAmount(500,this)">฿500</button>
           <button class="quick-amt" onclick="setAmount(1000,this)">฿1,000</button>
           <button class="quick-amt" onclick="setAmount(2000,this)">฿2,000</button>
           <button class="quick-amt" onclick="setAmount(5000,this)">฿5,000</button>
@@ -258,6 +259,7 @@
 
         <div class="tier-table">
           <div class="ttitle">📊 阶梯单价表</div>
+          <div class="tier-row"><span class="tier-amt">฿50 – 99</span><span class="tier-tokens">9,000 / ฿1</span></div>
           <div class="tier-row"><span class="tier-amt">฿100 – 199</span><span class="tier-tokens">10,000 / ฿1</span></div>
           <div class="tier-row"><span class="tier-amt">฿200 – 499</span><span class="tier-tokens">11,000 / ฿1</span></div>
           <div class="tier-row"><span class="tier-amt">฿500 – 999</span><span class="tier-tokens">12,000 / ฿1</span></div>
@@ -364,8 +366,8 @@
   </div>
 
   <script>
-    var selectedPlan = 'pro';  // 默认选中 Pro（推荐）
-    var paygoAmount = 500;    // 按量付费金额
+    var selectedPlan = 'starter';  // 默认选中 Starter（最低价）
+    var paygoAmount = 50;    // 按量付费金额
 
     // ============ 工具 ============
     function $(id) { return document.getElementById(id); }
@@ -416,18 +418,17 @@
           card.onclick = function() {
             selectedPlan = k;
             renderPlans(plans);
-            // 更新按钮下方提示
             var hint = $('planHint');
-            var names = {basic:'Basic', pro:'Pro ⭐', business:'Business'};
+            var names = {starter:'Starter 🆕', basic:'Basic', pro:'Pro ⭐', business:'Business'};
             hint.textContent = 'Selected: ' + (names[k] || k) + ' Plan';
           };
         })(key);
-        var star = (key === 'pro') ? ' ⭐' : '';
+        var star = (key === 'pro') ? ' ⭐' : (key === 'starter') ? ' 🆕' : '';
         card.innerHTML =
           '<div class="plan-name">' + p.name + star + '</div>' +
           '<div class="plan-name-th">' + p.name_th + '</div>' +
           '<div class="plan-price">฿' + Number(p.amount_thb).toLocaleString() + '<span>/mo</span></div>' +
-          '<div class="plan-quota">' + (p.quota/1e6).toFixed(0) + 'M tokens</div>' +
+          '<div class="plan-quota">' + (p.quota/1e6).toFixed(1) + 'M tokens</div>' +
           '<div class="plan-desc">' + p.description + '</div>';
         grid.appendChild(card);
       }
@@ -446,8 +447,8 @@
     function updateQuotaPreview() {
       var amt = Number($('paygoAmount').value) || 0;
       paygoAmount = amt;
-      if (amt < 100) {
-        $('quotaValue').textContent = '最少 ฿100';
+      if (amt < 50) {
+        $('quotaValue').textContent = '最少 ฿50';
         $('quotaRate').textContent = '';
         return;
       }
@@ -464,7 +465,8 @@
       else if (amt >= 1000)  tpb = 13000;
       else if (amt >= 500)   tpb = 12000;
       else if (amt >= 200)   tpb = 11000;
-      else                    tpb = 10000;
+      else if (amt >= 100)   tpb = 10000;
+      else                    tpb = 9000;  // 50-99 THB
       return { tokens: Math.floor(amt * tpb), rate: tpb };
     }
 

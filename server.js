@@ -29,6 +29,13 @@ const PAYPAL_API = PAYPAL_MODE === 'live'
 
 // ============ 套餐定价（会员制） ============
 const PRICING_PLANS = {
+  starter: {
+    name: 'Starter',
+    name_th: 'เริ่มต้น',
+    description: '0.5M tokens — สำหรับทดลองใช้งาน',
+    amount_thb: 50,
+    quota: 500_000,
+  },
   basic: {
     name: 'Basic',
     name_th: 'เบสิก',
@@ -55,14 +62,15 @@ const PRICING_PLANS = {
 // ============ 用量计价（按量付费） ============
 function calculateQuota(amountThb) {
   const amount = Number(amountThb);
-  if (!amount || amount < 100) return null;
+  if (!amount || amount < 50) return null;
   let tokensPerBaht;
   if (amount >= 5000)      tokensPerBaht = 15000;
   else if (amount >= 2000)  tokensPerBaht = 14000;
   else if (amount >= 1000)  tokensPerBaht = 13000;
   else if (amount >= 500)   tokensPerBaht = 12000;
   else if (amount >= 200)   tokensPerBaht = 11000;
-  else                       tokensPerBaht = 10000;
+  else if (amount >= 100)   tokensPerBaht = 10000;
+  else                       tokensPerBaht = 9000;   // 50-99 THB
   const quota = Math.floor(amount * tokensPerBaht);
   return {
     amount_thb: amount,
@@ -73,7 +81,7 @@ function calculateQuota(amountThb) {
 }
 
 function getPricingTable() {
-  return [100, 200, 500, 1000, 2000, 5000].map(t => calculateQuota(t));
+  return [50, 100, 200, 500, 1000, 2000, 5000].map(t => calculateQuota(t));
 }
 
 // ============ 中间件 ============
@@ -202,8 +210,8 @@ app.get('/api/pricing', (req, res) => {
   res.json({
     model: 'qwen',
     currency: 'THB',
-    min_amount: 100,
-    tokens_per_baht_base: 10000,
+    min_amount: 50,
+    tokens_per_baht_base: 9000,
     plans,
     tiers: getPricingTable()
   });
