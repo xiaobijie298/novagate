@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaGate — Payment Confirmation</title>
+  <style>
+    :root {
+      --bg: #0f0f14; --surface: #1a1a24; --surface2: #222233;
+      --border: #2a2a3a; --text: #e0e0e8; --text2: #8888a0;
+      --accent: #5b9cf5; --success: #22c55e; --warning: #f59e0b;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 40px 32px; max-width: 480px; width: 92%; text-align: center;
+    }
+    .spinner { width: 44px; height: 44px; border: 4px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h2 { font-size: 20px; margin-bottom: 8px; }
+    .status { font-size: 14px; color: var(--text2); margin-bottom: 24px; }
+    .error { color: var(--danger); font-size: 14px; }
+    .success-box {
+      background: var(--bg); border: 1px solid var(--success); border-radius: var(--radius);
+      padding: 24px; margin-top: 20px;
+    }
+    .success-box .icon { font-size: 48px; margin-bottom: 12px; }
+    .success-box .label { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+    .success-box .token {
+      font-family: monospace; font-size: 14px; word-break: break-all;
+      color: var(--success); background: var(--surface2); padding: 12px;
+      border-radius: var(--radius); margin: 8px 0;
+    }
+    .success-box .quota { font-size: 13px; color: var(--accent); margin-bottom: 16px; }
+    .btn {
+      padding: 12px 28px; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 600;
+      cursor: pointer; background: var(--accent); color: #fff; transition: opacity .15s;
+      text-decoration: none; display: inline-block;
+    }
+    .btn:hover { opacity: .85; }
+    .warning-note { font-size: 12px; color: var(--warning); margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="processing">
+      <div class="spinner"></div>
+      <h2>Confirming payment...</h2>
+      <p class="status">Please wait while we verify your PayPal payment</p>
+    </div>
+    <div id="result" style="display:none;"></div>
+  </div>
+
+  <script>
+    async function api(url, opt) {
+      const r = await fetch(url, opt);
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      return d;
+    }
+
+    (async function() {
+      const params = new URLSearchParams(location.search);
+      const orderId = params.get('token');
+      const payerId = params.get('PayerID');
+
+      if (!orderId || !payerId) {
+        showError('Missing order information. Please try buying again from the main page.');
+        return;
+      }
+
+      // 读取 localStorage 里的 pending order 信息
+      const pending = JSON.parse(localStorage.getItem('pendingOrder') || '{}');
+
+      try {
+        const data = await api('/api/paypal/confirm', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            order_id: orderId,
+            plan: pending.plan || null,
+            amount_thb: pending.amount_thb || null,
+            payer_email: pending.email || ''
+          })
+        });
+
+        $('processing').style.display = 'none';
+        const resultEl = $('result');
+        resultEl.style.display = '';
+        resultEl.innerHTML = `
+          <div class="success-box">
+            <div class="icon">✅</div>
+            <div class="label">Your API Token</div>
+            <div class="token" id="tokenValue">${data.token}</div>
+            <div class="quota">Quota: ${(data.quota / 1e6).toFixed(1)}M tokens</div>
+            <div class="warning-note">⚠️ This token cannot be recovered. Save it now!</div>
+          </div>
+          <div style="margin-top:20px;">
+            <button class="btn" onclick="copyToken('${data.token}')">📋 Copy Token</button>
+            <a href="/" class="btn" style="background:var(--surface2);color:var(--text);margin-left:8px;">Back to Home</a>
+          </div>
+        `;
+
+        localStorage.removeItem('pendingOrder');
+      } catch(e) {
+        showError('Payment confirmation failed: ' + e.message);
+      }
+    })();
+
+    function showError(msg) {
+      $('processing').style.display = 'none';
+      $('result').style.display = '';
+      $('result').innerHTML = `<p class="error">${msg}</p><div style="margin-top:20px;"><a href="/" class="btn">Back to Home</a></div>`;
+    }
+
+    function copyToken(token) {
+      navigator.clipboard.writeText(token).then(() => {
+        const btn = document.querySelector('button');
+        btn.textContent = 'Copied!';
+        btn.style.background = 'var(--success)';
+        setTimeout(() => { btn.textContent = '📋 Copy Token'; btn.style.background = 'var(--accent)'; }, 2000);
+      });
+    }
+
+    const $ = id => document.getElementById(id);
+  </script>
+</body>
+</html>

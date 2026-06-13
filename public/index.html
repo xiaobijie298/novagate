@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaGate — Buy API Tokens</title>
+  <style>
+    :root {
+      --bg: #0f0f14; --surface: #1a1a24; --surface2: #222233;
+      --border: #2a2a3a; --text: #e0e0e8; --text2: #8888a0;
+      --accent: #5b9cf5; --accent2: #7c3aed; --success: #22c55e;
+      --warning: #f59e0b; --danger: #ef4444; --radius: 8px;
+    }
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .nav {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; display: flex; align-items: center; gap: 12px; height: 52px;
+    }
+    .nav-logo { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+    .nav-logo span { color: var(--accent); }
+    .nav-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+    .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .nav-badge { font-size: 11px; background: var(--accent2); color: #fff; padding: 2px 8px; border-radius: 10px; }
+
+    .container { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: var(--text2); font-size: 14px; margin-bottom: 32px; }
+
+    /* 标签切换 */
+    .mode-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .mode-tab {
+      flex: 1; padding: 10px 6px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: none; color: var(--text2); font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .mode-tab:hover { border-color: var(--accent); color: var(--text); }
+    .mode-tab.active { border-color: var(--warning); color: var(--warning); background: rgba(245,158,11,.08); }
+    .mode-section { display: none; }
+    .mode-section.active { display: block; }
+
+    /* 套餐卡片 */
+    .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+    .plan-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 22px 16px; text-align: center; cursor: pointer; transition: all .15s;
+    }
+    .plan-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .plan-card.selected { border-color: var(--warning); background: rgba(245,158,11,.06); }
+    .plan-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .plan-name-th { font-size: 11px; color: var(--text2); margin-bottom: 12px; }
+    .plan-price { font-size: 26px; font-weight: 800; color: var(--warning); margin-bottom: 4px; }
+    .plan-price span { font-size: 13px; font-weight: 400; color: var(--text2); }
+    .plan-quota { font-size: 12px; color: var(--accent); margin-bottom: 10px; }
+    .plan-desc { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+    /* 按量付费 */
+    .paygo-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; margin-bottom: 20px;
+    }
+    .paygo-card h2 { font-size: 16px; margin-bottom: 16px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 13px; outline: none;
+      font-family: inherit; resize: vertical;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      border-color: var(--accent);
+    }
+    .form-group textarea { min-height: 60px; }
+    .form-row { display: flex; gap: 10px; }
+    .form-row > * { flex: 1; }
+    .quick-amounts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .quick-amt {
+      padding: 6px 14px; border: 1px solid var(--border); border-radius: 20px;
+      background: none; color: var(--text2); font-size: 12px; cursor: pointer; transition: all .15s;
+    }
+    .quick-amt:hover { border-color: var(--accent); color: var(--accent); }
+    .quick-amt.active { border-color: var(--warning); color: var(--warning); background: rgba(245,158,11,.08); }
+    .quota-preview {
+      background: var(--bg); border: 1px solid var(--success); border-radius: var(--radius);
+      padding: 14px; margin-top: 12px; text-align: center;
+    }
+    .quota-preview .label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+    .quota-preview .value { font-size: 22px; font-weight: 700; color: var(--success); }
+    .quota-preview .sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+    .tier-table { margin-top: 16px; }
+    .tier-table .ttitle { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+    .tier-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 0; font-size: 12px; border-bottom: 1px solid var(--border);
+    }
+    .tier-row:last-child { border-bottom: none; }
+    .tier-amt { color: var(--text2); }
+    .tier-tokens { color: var(--accent); font-weight: 600; }
+
+    /* 测试栏目 */
+    .test-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; margin-bottom: 20px;
+    }
+    .test-card h2 { font-size: 16px; margin-bottom: 16px; }
+    .response-box {
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px; margin-top: 12px; min-height: 60px; font-size: 13px;
+      line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+    }
+    .response-box.success { border-color: var(--success); }
+    .response-box.error { border-color: var(--danger); color: var(--danger); }
+    .response-box .meta { font-size: 11px; color: var(--text2); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .status-indicator {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
+    }
+    .status-indicator.idle { background: var(--text2); }
+    .status-indicator.streaming { background: var(--accent); animation: pulse 1s infinite; }
+    .status-indicator.done { background: var(--success); }
+    .status-indicator.error { background: var(--danger); }
+
+    /* 支付弹窗（纯 PayPal） */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,.75); z-index: 9990; display: none;
+    }
+    .modal-overlay.show { display: flex; align-items: center; justify-content: center; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; max-width: 420px; width: 92%; z-index: 9991;
+    }
+    .modal h2 { font-size: 17px; margin-bottom: 6px; }
+    .modal .sub { font-size: 12px; color: var(--text2); margin-bottom: 16px; }
+    .paypal-email { margin-bottom: 16px; }
+    .paypal-email label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 6px; }
+    .paypal-email input {
+      width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 13px; outline: none;
+    }
+    .paypal-email input:focus { border-color: var(--accent); }
+    #payTokenResult, #paygoTokenResult {
+      background: var(--bg); border: 1px solid var(--success); border-radius: var(--radius);
+      padding: 16px; margin-top: 16px; display: none;
+    }
+
+    /* 通用按钮 */
+    .btn {
+      padding: 10px 20px; border: none; border-radius: var(--radius);
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .btn-warning { background: var(--warning); color: #000; }
+    .btn-warning:hover { opacity: .85; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-accent:hover { opacity: .85; }
+    .btn-secondary { background: var(--surface2); color: var(--text); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-lg { padding: 14px 28px; font-size: 15px; }
+    .btn-block { width: 100%; }
+    .btn-sm { padding: 8px 16px; font-size: 12px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+      border-radius: 10px; font-size: 13px; font-weight: 500; z-index: 9999;
+      animation: slideIn .2s ease;
+    }
+    .toast-success { background: #163122; color: #22c55e; border: 1px solid #22c55e; }
+    .toast-error { background: #2d1215; color: #ef4444; border: 1px solid #ef4444; }
+    @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    @media (max-width: 600px) {
+      .plans-grid { grid-template-columns: 1fr; }
+      .form-row { flex-direction: column; }
+      .mode-tab { font-size: 11px; padding: 8px 4px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-logo">Nova<span>Gate</span></div>
+    <div class="nav-status">
+      <div class="nav-dot"></div>
+      <span>API Proxy · Qwen</span>
+    </div>
+    <div class="nav-badge">THB Pricing</div>
+  </nav>
+
+  <div class="container">
+    <h1>Buy & Test API Tokens</h1>
+    <p class="subtitle">Choose a plan, get your token, then test it right here.</p>
+
+    <!-- 三个标签 -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="switchMode('membership', this)">🎫 Membership</button>
+      <button class="mode-tab" onclick="switchMode('paygo', this)">⚡ Token 计费</button>
+      <button class="mode-tab" onclick="switchMode('test', this)">🧪 API Test</button>
+    </div>
+
+    <!-- Membership 套餐 -->
+    <div class="mode-section active" id="secMembership">
+      <div class="plans-grid" id="plansGrid"></div>
+        <div style="text-align:center;">
+          <button class="btn btn-warning btn-lg" style="min-width:200px;" id="buyPlanBtn" onclick="openModal()">💳 Buy Tokens Now</button>
+          <div style="font-size:11px;color:var(--text2);margin-top:6px;" id="planHint">Selected: Pro Plan ⭐</div>
+          <div style="margin-top:12px;">
+            <button class="btn btn-sm" style="background:var(--surface2);color:var(--accent);border:1px dashed var(--accent);" onclick="simulateDelivery(false)">📦 预览交付界面</button>
+          </div>
+        </div>
+    </div>
+
+    <!-- Token 计费（按量付费） -->
+    <div class="mode-section" id="secPaygo">
+      <div class="paygo-card">
+        <h2>⚡ Token 计费（按量付费）</h2>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:16px;">输入充值金额，买得越多，单价越低。</p>
+
+        <div class="form-group">
+          <label>充值金额（฿ THB）</label>
+          <input type="number" id="paygoAmount" min="100" step="100" value="500"
+                 oninput="updateQuotaPreview()" placeholder="最少 ฿100" />
+        </div>
+        <div class="quick-amounts">
+          <button class="quick-amt" onclick="setAmount(100,this)">฿100</button>
+          <button class="quick-amt" onclick="setAmount(200,this)">฿200</button>
+          <button class="quick-amt active" onclick="setAmount(500,this)">฿500</button>
+          <button class="quick-amt" onclick="setAmount(1000,this)">฿1,000</button>
+          <button class="quick-amt" onclick="setAmount(2000,this)">฿2,000</button>
+          <button class="quick-amt" onclick="setAmount(5000,this)">฿5,000</button>
+        </div>
+
+        <div class="quota-preview" id="quotaPreview">
+          <div class="label">你将获得</div>
+          <div class="value" id="quotaValue">6,000,000 tokens</div>
+          <div class="sub" id="quotaRate">单价：฿1 = 12,000 tokens</div>
+        </div>
+
+        <div class="tier-table">
+          <div class="ttitle">📊 阶梯单价表</div>
+          <div class="tier-row"><span class="tier-amt">฿100 – 199</span><span class="tier-tokens">10,000 / ฿1</span></div>
+          <div class="tier-row"><span class="tier-amt">฿200 – 499</span><span class="tier-tokens">11,000 / ฿1</span></div>
+          <div class="tier-row"><span class="tier-amt">฿500 – 999</span><span class="tier-tokens">12,000 / ฿1</span></div>
+          <div class="tier-row"><span class="tier-amt">฿1,000 – 1,999</span><span class="tier-tokens">13,000 / ฿1</span></div>
+          <div class="tier-row"><span class="tier-amt">฿2,000 – 4,999</span><span class="tier-tokens">14,000 / ฿1</span></div>
+          <div class="tier-row"><span class="tier-amt">฿5,000+</span><span class="tier-tokens">15,000 / ฿1</span></div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <button class="btn btn-warning btn-lg btn-block" onclick="openPaygoModal()">💳 立即购买</button>
+          <div style="margin-top:10px;text-align:center;">
+            <button class="btn btn-sm" style="background:var(--surface2);color:var(--accent);border:1px dashed var(--accent);" onclick="simulateDelivery(true)">📦 预览交付界面</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test 测试栏目 -->
+    <div class="mode-section" id="secTest">
+      <div class="test-card">
+        <h2>API Key</h2>
+        <div class="form-group">
+          <label>Your NovaGate Token</label>
+          <input type="text" id="testToken" placeholder="sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+        </div>
+      </div>
+
+      <div class="test-card">
+        <h2>Chat Completions</h2>
+        <div class="form-group">
+          <label>Model</label>
+          <select id="testModel">
+            <option value="qwen-turbo">Qwen Turbo (fast)</option>
+            <option value="qwen-plus">Qwen Plus (balanced)</option>
+            <option value="qwen-max">Qwen Max (powerful)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>System Prompt (optional)</label>
+          <input type="text" id="testSystem" placeholder="You are a helpful assistant." />
+        </div>
+        <div class="form-group">
+          <label>Your Message</label>
+          <textarea id="testMessage" placeholder="Type your message here...">Hello! Introduce yourself in one sentence.</textarea>
+        </div>
+        <div class="form-row">
+          <button class="btn btn-accent btn-lg" id="testSendBtn" onclick="sendTest()" style="flex:2;">
+            <span id="testBtnText">▶ Send</span>
+          </button>
+          <button class="btn btn-secondary btn-lg" onclick="clearTest()" style="flex:1;">Clear</button>
+        </div>
+
+        <div style="margin-top:8px;">
+          <span class="status-indicator idle" id="testStatus"></span>
+          <span style="font-size:12px;color:var(--text2);" id="testStatusText">Idle</span>
+        </div>
+
+        <div id="testResponse" class="response-box" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 支付弹窗（套餐用，纯 PayPal） -->
+  <div class="modal-overlay" id="payModal">
+    <div class="modal">
+      <h2 id="payTitle">💰 Pay with PayPal</h2>
+      <p class="sub">You will be redirected to PayPal to complete payment securely.</p>
+      <div class="paypal-email">
+        <label>Email (optional, for receipt)</label>
+        <input type="email" id="payEmail" placeholder="your@email.com" />
+      </div>
+      <button class="btn btn-warning btn-lg btn-block" id="payBtn" onclick="startPayPal()">💳 Pay with PayPal</button>
+      <div id="payTokenResult">
+        <div style="text-align:center;padding:12px 0;">
+          <div style="font-size:40px;margin-bottom:8px;">✅</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Payment Confirmed!</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">Save your API token below and test it on the Test tab:</div>
+          <div id="payTokenValue" style="font-family:monospace;background:var(--bg);padding:10px;border-radius:var(--radius);font-size:13px;word-break:break-all;color:var(--success);"></div>
+          <div style="font-size:11px;color:var(--text2);margin-top:8px;">⚠️ This token cannot be recovered. Save it now!</div>
+        </div>
+      </div>
+      <div style="height:12px;"></div>
+      <button class="btn btn-secondary btn-sm btn-block" onclick="closeModal('payModal')">Close</button>
+    </div>
+  </div>
+
+  <!-- 支付弹窗（按量付费用，纯 PayPal） -->
+  <div class="modal-overlay" id="paygoModal">
+    <div class="modal">
+      <h2 id="paygoTitle">💰 Pay with PayPal</h2>
+      <p class="sub" id="paygoDesc"></p>
+      <button class="btn btn-warning btn-lg btn-block" id="paygoBtn" onclick="startPaygoPayPal()">💳 Pay with PayPal</button>
+      <div id="paygoTokenResult">
+        <div style="text-align:center;padding:12px 0;">
+          <div style="font-size:40px;margin-bottom:8px;">✅</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Payment Confirmed!</div>
+          <div id="paygoTokenValue" style="font-family:monospace;background:var(--bg);padding:10px;border-radius:var(--radius);font-size:13px;word-break:break-all;color:var(--success);"></div>
+          <div style="font-size:11px;color:var(--text2);margin-top:8px;">⚠️ This token cannot be recovered. Save it now!</div>
+        </div>
+      </div>
+      <div style="height:12px;"></div>
+      <button class="btn btn-secondary btn-sm btn-block" onclick="closeModal('paygoModal')">Close</button>
+    </div>
+  </div>
+
+  <script>
+    var selectedPlan = 'pro';  // 默认选中 Pro（推荐）
+    var paygoAmount = 500;    // 按量付费金额
+
+    // ============ 工具 ============
+    function $(id) { return document.getElementById(id); }
+
+    function api(url, opt) {
+      return fetch(url, opt).then(function(r){ return r.json(); }).then(function(d){
+        if (d.error) throw new Error(d.error);
+        return d;
+      });
+    }
+
+    function toast(msg, type) {
+      var el = document.createElement('div');
+      el.className = 'toast toast-' + type;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function(){ el.remove(); }, 3000);
+    }
+
+    // ============ 标签切换 ============
+    function switchMode(mode, el) {
+      var tabs = document.querySelectorAll('.mode-tab');
+      for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+      el.classList.add('active');
+      $('secMembership').classList.toggle('active', mode === 'membership');
+      $('secPaygo').classList.toggle('active', mode === 'paygo');
+      $('secTest').classList.toggle('active', mode === 'test');
+    }
+
+    // ============ 加载定价 ============
+    function loadPricing() {
+      api('/api/pricing', {}).then(function(data){
+        renderPlans(data.plans);
+      }).catch(function(e){ console.error(e); });
+    }
+
+    // ============ 渲染套餐卡片 ============
+    function renderPlans(plans) {
+      var grid = $('plansGrid');
+      grid.innerHTML = '';
+      var keys = Object.keys(plans);
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var p = plans[key];
+        var card = document.createElement('div');
+        card.className = 'plan-card' + (selectedPlan === key ? ' selected' : '');
+        (function(k){
+          card.onclick = function() {
+            selectedPlan = k;
+            renderPlans(plans);
+            // 更新按钮下方提示
+            var hint = $('planHint');
+            var names = {basic:'Basic', pro:'Pro ⭐', business:'Business'};
+            hint.textContent = 'Selected: ' + (names[k] || k) + ' Plan';
+          };
+        })(key);
+        var star = (key === 'pro') ? ' ⭐' : '';
+        card.innerHTML =
+          '<div class="plan-name">' + p.name + star + '</div>' +
+          '<div class="plan-name-th">' + p.name_th + '</div>' +
+          '<div class="plan-price">฿' + Number(p.amount_thb).toLocaleString() + '<span>/mo</span></div>' +
+          '<div class="plan-quota">' + (p.quota/1e6).toFixed(0) + 'M tokens</div>' +
+          '<div class="plan-desc">' + p.description + '</div>';
+        grid.appendChild(card);
+      }
+    }
+
+    // ============ 按量付费逻辑 ============
+    function setAmount(amt, btn) {
+      paygoAmount = amt;
+      $('paygoAmount').value = amt;
+      var btns = document.querySelectorAll('.quick-amt');
+      for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+      if (btn) btn.classList.add('active');
+      updateQuotaPreview();
+    }
+
+    function updateQuotaPreview() {
+      var amt = Number($('paygoAmount').value) || 0;
+      paygoAmount = amt;
+      if (amt < 100) {
+        $('quotaValue').textContent = '最少 ฿100';
+        $('quotaRate').textContent = '';
+        return;
+      }
+      var result = calcTokens(amt);
+      $('quotaValue').textContent = Number(result.tokens).toLocaleString() + ' tokens';
+      $('quotaRate').textContent = '单价：฿1 = ' + Number(result.rate).toLocaleString() + ' tokens';
+    }
+
+    function calcTokens(amountBaht) {
+      var amt = Number(amountBaht);
+      var tpb;
+      if (amt >= 5000)      tpb = 15000;
+      else if (amt >= 2000)  tpb = 14000;
+      else if (amt >= 1000)  tpb = 13000;
+      else if (amt >= 500)   tpb = 12000;
+      else if (amt >= 200)   tpb = 11000;
+      else                    tpb = 10000;
+      return { tokens: Math.floor(amt * tpb), rate: tpb };
+    }
+
+    // ============ 支付弹窗 ============
+    function openModal() {
+      if (!selectedPlan) { toast('Please select a plan first', 'error'); return; }
+      $('payTitle').textContent = '💰 Pay for ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) + ' Plan';
+      $('payModal').classList.add('show');
+    }
+
+    function openPaygoModal() {
+      var amt = Number($('paygoAmount').value) || 0;
+      if (amt < 100) { toast('Minimum amount is ฿100', 'error'); return; }
+      var result = calcTokens(amt);
+      $('paygoTitle').textContent = '💰 Token 计费支付';
+      $('paygoDesc').textContent = '฿' + amt.toLocaleString() + ' → ' + Number(result.tokens).toLocaleString() + ' tokens';
+      $('paygoModal').classList.add('show');
+    }
+
+    function closeModal(id) {
+      $(id || 'payModal').classList.remove('show');
+    }
+
+    // PayPal（套餐）
+    function startPayPal() {
+      if (!selectedPlan) return;
+      var email = $('payEmail').value.trim();
+      $('payBtn').disabled = true;
+      $('payBtn').textContent = 'Creating order...';
+      var body = { plan: selectedPlan };
+      if (email) body.payer_email = email;
+      api('/api/paypal/create-order', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      }).then(function(data){
+        if (!data.approve_url) throw new Error('No PayPal approval URL');
+        localStorage.setItem('pendingOrder', JSON.stringify({
+          order_id: data.order_id,
+          plan: selectedPlan,
+          amount_thb: data.amount_thb,
+          email: email
+        }));
+        $('payBtn').textContent = 'Redirecting to PayPal...';
+        window.location.href = data.approve_url;
+      }).catch(function(e){
+        toast('PayPal: ' + e.message, 'error');
+        $('payBtn').disabled = false;
+        $('payBtn').textContent = '💳 Pay with PayPal';
+      });
+    }
+
+    // PayPal（按量付费）
+    function startPaygoPayPal() {
+      var amt = Number($('paygoAmount').value) || 0;
+      if (amt < 100) return;
+      $('paygoBtn').disabled = true;
+      $('paygoBtn').textContent = 'Creating order...';
+      api('/api/paypal/create-order', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ amount_thb: amt })
+      }).then(function(data){
+        if (!data.approve_url) throw new Error('No PayPal approval URL');
+        localStorage.setItem('pendingOrder', JSON.stringify({
+          order_id: data.order_id,
+          plan: null,
+          amount_thb: amt,
+          email: ''
+        }));
+        $('paygoBtn').textContent = 'Redirecting to PayPal...';
+        window.location.href = data.approve_url;
+      }).catch(function(e){
+        toast('PayPal: ' + e.message, 'error');
+        $('paygoBtn').disabled = false;
+        $('paygoBtn').textContent = '💳 Pay with PayPal';
+      });
+    }
+
+    // PayPal 回调确认
+    function confirmPayPal(orderId, plan, amountThb, email) {
+      var body = { order_id: orderId };
+      if (plan) body.plan = plan;
+      if (amountThb) body.amount_thb = amountThb;
+      api('/api/paypal/confirm', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      }).then(function(data){
+        var isPaygo = !plan;
+        var modalId  = isPaygo ? 'paygoModal' : 'payModal';
+        var resultDiv = isPaygo ? $('paygoTokenResult') : $('payTokenResult');
+        var valueDiv  = isPaygo ? $('paygoTokenValue') : $('payTokenValue');
+        // 打开弹窗，显示 Token
+        $(modalId).classList.add('show');
+        resultDiv.style.display = '';
+        valueDiv.textContent = data.token;
+        toast('✅ Payment successful! Save your API key.', 'success');
+        localStorage.removeItem('pendingOrder');
+        // 自动填入 Test 标签
+        $('testToken').value = data.token;
+      }).catch(function(e){
+        toast('Confirmation failed: ' + e.message, 'error');
+      });
+    }
+
+    // 模拟交付演示（无需真实支付）
+    function simulateDelivery(isPaygo) {
+      var plan = selectedPlan;
+      var planLabel = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : '';
+      var modalId  = isPaygo ? 'paygoModal' : 'payModal';
+      var resultDiv = isPaygo ? $('paygoTokenResult') : $('payTokenResult');
+      var valueDiv  = isPaygo ? $('paygoTokenValue') : $('payTokenValue');
+      // 调用 admin 创建用户获取真实 token
+      api('/admin/create-user', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ quota: isPaygo ? 6000000 : 50000000, label: 'demo_' + (planLabel || 'paygo') })
+      }).then(function(data){
+        $(modalId).classList.add('show');
+        resultDiv.style.display = '';
+        valueDiv.textContent = data.token;
+        $('testToken').value = data.token;
+        toast('📦 交付演示 — 这是客户看到的内容', 'success');
+      }).catch(function(e){
+        toast('Demo error: ' + e.message, 'error');
+      });
+    }
+
+    // ============ API 测试 ============
+    function setTestStatus(state, text) {
+      $('testStatus').className = 'status-indicator ' + state;
+      $('testStatusText').textContent = text;
+    }
+
+    function sendTest() {
+      var token   = $('testToken').value.trim();
+      var model   = $('testModel').value;
+      var system  = $('testSystem').value.trim();
+      var message = $('testMessage').value.trim();
+
+      if (!token)  { toast('Please enter your NovaGate token', 'error'); return; }
+      if (!token.startsWith('sk_')) { toast('Token must start with sk_', 'error'); return; }
+      if (!message) { toast('Please enter a message', 'error'); return; }
+
+      var btn = $('testSendBtn');
+      btn.disabled = true;
+      $('testBtnText').textContent = '⏳ Sending...';
+      setTestStatus('streaming', 'Sending request...');
+
+      var box = $('testResponse');
+      box.style.display = '';
+      box.className = 'response-box';
+      box.innerHTML = '<span style="color:var(--text2);">Loading...</span>';
+
+      var startTime = Date.now();
+      var messages = [];
+      if (system) messages.push({ role: 'system', content: system });
+      messages.push({ role: 'user', content: message });
+
+      setTestStatus('streaming', 'Waiting for response...');
+
+      api('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ model: model, messages: messages })
+      }).then(function(data){
+        var elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        if (data.choices && data.choices[0]) {
+          var content = data.choices[0].message.content;
+          box.className = 'response-box success';
+          var usage = data.usage ? data.usage.total_tokens : '—';
+          box.innerHTML = content + '<div class="meta">✅ Model: ' + (data.model || model) + ' · Time: ' + elapsed + 's · Tokens: ' + usage + '</div>';
+          setTestStatus('done', 'Done in ' + elapsed + 's');
+          toast('Response received!', 'success');
+        } else {
+          box.className = 'response-box error';
+          box.textContent = 'Unexpected response: ' + JSON.stringify(data);
+          setTestStatus('error', 'Bad response');
+        }
+      }).catch(function(e){
+        box.className = 'response-box error';
+        box.textContent = 'Error: ' + e.message;
+        setTestStatus('error', 'Request failed');
+      }).finally(function(){
+        btn.disabled = false;
+        $('testBtnText').textContent = '▶ Send';
+      });
+    }
+
+    function clearTest() {
+      $('testResponse').style.display = 'none';
+      $('testResponse').className = 'response-box';
+      $('testResponse').innerHTML = '';
+      setTestStatus('idle', 'Idle');
+    }
+
+    // ============ 页面加载 ============
+    loadPricing();
+    updateQuotaPreview();
+
+    // 检查 PayPal 回调
+    (function(){
+      var params = new URLSearchParams(location.search);
+      var token   = params.get('token');
+      var payerId = params.get('PayerID');
+      if (token && payerId) {
+        var pending = JSON.parse(localStorage.getItem('pendingOrder') || '{}');
+        confirmPayPal(token, pending.plan || null, pending.amount_thb || null, pending.email || '');
+        history.replaceState(null, '', location.pathname);
+      }
+      if (params.get('cancel') === '1') {
+        toast('Payment cancelled', 'error');
+        history.replaceState(null, '', location.pathname);
+      }
+    })();
+  </script>
+</body>
+</html>
