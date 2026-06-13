@@ -11,6 +11,7 @@ const QWEN_API_KEY = process.env.QWEN_API_KEY;
 const QWEN_ENDPOINT = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 const USERS_FILE = path.join(__dirname, 'users.json');
 const LOGS_FILE = path.join(__dirname, 'logs.json');
+const TRAFFIC_FILE = path.join(__dirname, 'traffic.json');
 
 // ============ 免费试用配置 ============
 const TRIAL_CLAIMS = new Map(); // ip -> timestamp
@@ -80,6 +81,25 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
+// ============ 流量监控中间件 ============
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const rawIp = req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '';
+    const ip = String(rawIp).split(',')[0].trim();
+    logTraffic({
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      duration,
+      ip,
+      ua: (req.headers['user-agent'] || '').slice(0, 80)
+    });
+  });
+  next();
+});
+
 // ============ 日志系统 ============
 function loadLogs() {
   if (!fs.existsSync(LOGS_FILE)) return [];
@@ -93,6 +113,21 @@ function writeLog(entry) {
   const logs = loadLogs();
   logs.push({ id: logs.length + 1, timestamp: new Date().toISOString(), ...entry });
   saveLogs(logs);
+}
+
+// ============ 流量日志（精简版，用于统计） ============
+function loadTraffic() {
+  if (!fs.existsSync(TRAFFIC_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(TRAFFIC_FILE, 'utf8')); } catch { return []; }
+}
+function saveTraffic(data) {
+  const trimmed = data.length > 10000 ? data.slice(data.length - 10000) : data;
+  fs.writeFileSync(TRAFFIC_FILE, JSON.stringify(trimmed));
+}
+function logTraffic(entry) {
+  const t = loadTraffic();
+  t.push({ ts: new Date().toISOString(), ...entry });
+  saveTraffic(t);
 }
 
 // ============ 用户数据 ============
@@ -441,6 +476,97 @@ app.post('/admin/toggle-user', (req, res) => {
 
 app.get('/admin/logs', (req, res) => {
   res.json(loadLogs().slice(-200));
+});
+
+// ============ 管理后台：统计数据 ============
+app.get('/admin/stats', (req, res) => {
+  const data = loadUsers();
+  const users = Object.entries(data.users).map(([id, u]) => ({ id, ...u }));
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.active).length;
+  const totalQuota = users.reduce((s, u) => s + u.quota, 0);
+  const totalUsed = users.reduce((s, u) => s + u.used, 0);
+
+  // 今日统计（基于 traffic.json）
+  const traffic = loadTraffic();
+  const today = new Date().toISOString().slice(0, 10); // "2026-06-13"
+  const todayTraffic = traffic.filter(t => t.ts.startsWith(today));
+  const todayRequests = todayTraffic.length;
+  const todayErrors = todayTraffic.filter(t => t.status >= 400).length;
+  const todayApiCalls = todayTraffic.filter(t => t.path === '/api/chat').length;
+
+  // 今日 token 消耗（基于 logs.json）
+  const logs = loadLogs();
+  const todayLogs = logs.filter(l => l.timestamp && l.timestamp.startsWith(today));
+  const todayTokens = todayLogs
+    .filter(l => l.type === 'api' && l.action === 'chat')
+    .reduce((s, l) => s + (l.tokens || 0), 0);
+
+  // 按小时分布（最近24小时）
+  const hourlyLabels = [];
+  const hourlyData = [];
+  const now = new Date();
+  for (let h = 23; h >= 0; h--) {
+    const d = new Date(now - h * 3600000);
+    const label = d.toISOString().slice(11, 16); // "HH:MM"
+    const hourPrefix = d.toISOString().slice(0, 13); // "2026-06-13T15"
+    const count = traffic.filter(t => t.ts.startsWith(hourPrefix)).length;
+    hourlyLabels.push(label);
+    hourlyData.push(count);
+  }
+
+  // 每日 token 消耗趋势（最近14天）
+  const dailyTokenLabels = [];
+  const dailyTokenData = [];
+  for (let d = 13; d >= 0; d--) {
+    const date = new Date(now - d * 86400000);
+    const dateStr = date.toISOString().slice(0, 10);
+    const tokens = logs
+      .filter(l => l.timestamp && l.timestamp.startsWith(dateStr) && l.type === 'api' && l.action === 'chat')
+      .reduce((s, l) => s + (l.tokens || 0), 0);
+    dailyTokenLabels.push(dateStr.slice(5)); // "06-13"
+    dailyTokenData.push(tokens);
+  }
+
+  // Top 路径
+  const pathCounts = {};
+  traffic.forEach(t => { pathCounts[t.path] = (pathCounts[t.path] || 0) + 1; });
+  const topPaths = Object.entries(pathCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([path, count]) => ({ path, count }));
+
+  // 今日新注册
+  const todayNewUsers = users.filter(u => u.created_at && u.created_at.startsWith(today)).length;
+
+  // 营收统计
+  const paymentLogs = logs.filter(l => l.type === 'payment' && l.action === 'paypal_confirmed');
+  const totalRevenue = paymentLogs.length * 999; // 粗略估算，实际可从log中读取
+
+  res.json({
+    total_users: totalUsers,
+    active_users: activeUsers,
+    today_new_users: todayNewUsers,
+    total_quota: totalQuota,
+    total_used: totalUsed,
+    usage_pct: totalQuota > 0 ? ((totalUsed / totalQuota) * 100).toFixed(1) : 0,
+    today_requests: todayRequests,
+    today_errors: todayErrors,
+    today_api_calls: todayApiCalls,
+    today_tokens: todayTokens,
+    hourly: { labels: hourlyLabels, data: hourlyData },
+    daily_tokens: { labels: dailyTokenLabels, data: dailyTokenData },
+    top_paths: topPaths,
+    payments_count: paymentLogs.length,
+    traffic_count: traffic.length
+  });
+});
+
+// 最近请求日志（最新 N 条）
+app.get('/admin/recent', (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  const traffic = loadTraffic();
+  res.json(traffic.slice(-limit).reverse());
 });
 
 // 启动

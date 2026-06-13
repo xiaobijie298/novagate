@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaGate — Admin Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --bg2: #111119;
+      --surface: #161622;
+      --surface2: #1e1e30;
+      --border: #2a2a3e;
+      --text: #e8e8f0;
+      --text2: #8888a0;
+      --accent: #6366f1;
+      --accent2: #818cf8;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --grad: linear-gradient(135deg, #6366f1, #a855f7);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text); min-height:100vh;
+    }
+    .header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top:0; z-index: 100;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .header h1 span { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header .status { font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.live { background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px 28px; }
+    
+    /* Cards */
+    .card-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card .icon { font-size: 24px; margin-bottom: 8px; }
+    .card .label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .card .value { font-size: 28px; font-weight: 700; }
+    .card .sub { font-size: 11px; color: var(--text2); margin-top: 6px; }
+    .card .sub.good { color: var(--success); }
+    .card .sub.warn { color: var(--warning); }
+    
+    /* Chart rows */
+    .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .chart-row { grid-template-columns: 1fr; } }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .chart-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--text2); }
+    .chart-box { position: relative; height: 260px; }
+    .chart-box canvas { width: 100% !important; height: 100% !important; }
+    
+    /* Tables */
+    .table-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .table-row { grid-template-columns: 1fr; } }
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      overflow: hidden;
+    }
+    .table-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: var(--text2); }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    td { font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--border); font-family: 'SF Mono', 'Cascadia Code', monospace; }
+    tr:last-child td { border-bottom: none; }
+    .method-get { color: var(--success); }
+    .method-post { color: var(--warning); }
+    .method-other { color: var(--accent2); }
+    .code-2xx { color: var(--success); }
+    .code-3xx { color: var(--warning); }
+    .code-4xx { color: var(--danger); }
+    .code-5xx { color: var(--danger); font-weight: 700; }
+    .ip { color: var(--text2); font-size: 10px; }
+    
+    .refresh-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px;
+    }
+    .refresh-bar .info { font-size: 12px; color: var(--text2); }
+    .refresh-bar button {
+      background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+      padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; transition: 0.2s;
+    }
+    .refresh-bar button:hover { background: var(--accent); border-color: var(--accent); }
+    
+    .empty-state {
+      text-align: center; padding: 40px; color: var(--text2); font-size: 13px;
+    }
+    
+    .progress-bar {
+      height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden;
+    }
+    .progress-bar .fill {
+      height: 100%; background: var(--grad); border-radius: 2px; transition: width 0.5s;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 NovaGate <span>Admin</span></h1>
+    <div class="status"><div class="dot live"></div> Live · <span id="clock">--</span></div>
+  </div>
+
+  <div class="container">
+    <!-- Refresh -->
+    <div class="refresh-bar">
+      <div class="info" id="lastUpdate">Loading...</div>
+      <button onclick="refresh()">🔄 Refresh</button>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="card-row" id="cards">
+      <div class="card"><div class="icon">👥</div><div class="label">Total Users</div><div class="value">--</div><div class="sub">-- active</div></div>
+      <div class="card"><div class="icon">📨</div><div class="label">Today Requests</div><div class="value">--</div><div class="sub">-- API calls</div></div>
+      <div class="card"><div class="icon">🔤</div><div class="label">Today Tokens</div><div class="value">--</div><div class="sub">--</div></div>
+      <div class="card"><div class="icon">💰</div><div class="label">Total Payments</div><div class="value">--</div><div class="sub">--</div></div>
+      <div class="card"><div class="icon">📦</div><div class="label">Total Quota</div><div class="value">--</div><div class="sub">-- used</div></div>
+      <div class="card"><div class="icon">🆕</div><div class="label">New Today</div><div class="value">--</div><div class="sub">users</div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>📈 Requests per Hour (24h)</h3>
+        <div class="chart-box"><canvas id="hourlyChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>🔥 Token Usage per Day (14d)</h3>
+        <div class="chart-box"><canvas id="dailyTokenChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Tables -->
+    <div class="table-row">
+      <div class="table-card">
+        <h3>🌐 Recent Requests</h3>
+        <div style="max-height: 360px; overflow-y: auto;" id="recentTable">
+          <div class="empty-state">Loading...</div>
+        </div>
+      </div>
+      <div class="table-card">
+        <h3>📊 Top Endpoints</h3>
+        <div style="max-height: 360px; overflow-y: auto;" id="topPathsTable">
+          <div class="empty-state">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="table-card" style="margin-bottom:24px;">
+      <h3>👤 All Users</h3>
+      <div style="max-height: 400px; overflow-y: auto;" id="usersTable">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const API = path => fetch(path).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+
+    let hourlyChart, dailyTokenChart;
+
+    function formatNum(n) {
+      if (n == null) return '--';
+      if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
+      if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+      if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+      return String(n);
+    }
+
+    function getStatusCodeClass(code) {
+      if (code < 300) return 'code-2xx';
+      if (code < 400) return 'code-3xx';
+      if (code < 500) return 'code-4xx';
+      return 'code-5xx';
+    }
+
+    function getMethodClass(m) {
+      if (m === 'GET') return 'method-get';
+      if (m === 'POST') return 'method-post';
+      return 'method-other';
+    }
+
+    function renderCards(stats) {
+      const cards = $('cards');
+      cards.innerHTML = [
+        `<div class="card"><div class="icon">👥</div><div class="label">Total Users</div><div class="value">${stats.total_users}</div><div class="sub">${stats.active_users} active</div></div>`,
+        `<div class="card"><div class="icon">📨</div><div class="label">Today Requests</div><div class="value">${formatNum(stats.today_requests)}</div><div class="sub">${stats.today_api_calls} API calls</div></div>`,
+        `<div class="card"><div class="icon">🔤</div><div class="label">Today Tokens</div><div class="value">${formatNum(stats.today_tokens)}</div><div class="sub">${stats.today_errors ? '<span class="warn">'+stats.today_errors+' errors</span>' : '<span class="good">0 errors</span>'}</div></div>`,
+        `<div class="card"><div class="icon">💰</div><div class="label">Total Payments</div><div class="value">${stats.payments_count}</div><div class="sub">PayPal</div></div>`,
+        `<div class="card"><div class="icon">📦</div><div class="label">Total Quota</div><div class="value">${formatNum(stats.total_quota)}</div><div class="sub">${stats.usage_pct}% used<div class="progress-bar"><div class="fill" style="width:${stats.usage_pct}%"></div></div></div>`,
+        `<div class="card"><div class="icon">🆕</div><div class="label">New Today</div><div class="value">${stats.today_new_users}</div><div class="sub">users</div></div>`
+      ].join('');
+    }
+
+    function renderCharts(stats) {
+      const h = stats.hourly || { labels: [], data: [] };
+      const d = stats.daily_tokens || { labels: [], data: [] };
+
+      if (hourlyChart) hourlyChart.destroy();
+      if (dailyTokenChart) dailyTokenChart.destroy();
+
+      const gridColor = '#2a2a3e';
+      const accent = '#6366f1';
+
+      hourlyChart = new Chart($('hourlyChart'), {
+        type: 'bar',
+        data: {
+          labels: h.labels,
+          datasets: [{ label: 'Requests', data: h.data, backgroundColor: accent, borderRadius: 4, borderSkipped: false }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8888a0', font: { size: 9 }, maxTicksLimit: 12 }, grid: { color: gridColor } },
+            y: { ticks: { color: '#8888a0', font: { size: 9 } }, grid: { color: gridColor }, beginAtZero: true }
+          }
+        }
+      });
+
+      dailyTokenChart = new Chart($('dailyTokenChart'), {
+        type: 'line',
+        data: {
+          labels: d.labels,
+          datasets: [{
+            label: 'Tokens', data: d.data,
+            borderColor: accent, backgroundColor: accent + '20',
+            fill: true, tension: 0.3, pointRadius: 2, pointBackgroundColor: accent
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8888a0', font: { size: 9 } }, grid: { color: gridColor } },
+            y: { ticks: { color: '#8888a0', font: { size: 9 }, callback: v => formatNum(v) }, grid: { color: gridColor }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderRecent(recent) {
+      const el = $('recentTable');
+      if (!recent.length) { el.innerHTML = '<div class="empty-state">No traffic yet</div>'; return; }
+      let rows = recent.slice(0, 50).map(r => {
+        const ts = (r.ts || '').replace('T', ' ').slice(0, 19);
+        const path = r.path.length > 40 ? r.path.slice(0, 37) + '...' : r.path;
+        return `<tr>
+          <td>${ts}</td>
+          <td><span class="${getMethodClass(r.method)}">${r.method}</span></td>
+          <td>${path}</td>
+          <td><span class="${getStatusCodeClass(r.status)}">${r.status}</span></td>
+          <td>${r.duration}ms</td>
+          <td class="ip">${r.ip}</td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table><thead><tr><th>Time</th><th></th><th>Path</th><th>Status</th><th>Dur</th><th>IP</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function renderTopPaths(paths) {
+      const el = $('topPathsTable');
+      if (!paths.length) { el.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      const max = paths[0]?.count || 1;
+      let rows = paths.map(p => `
+        <tr>
+          <td>${p.path}</td>
+          <td style="text-align:right;">${p.count}</td>
+          <td style="width:120px;"><div class="progress-bar" style="margin-top:0;"><div class="fill" style="width:${(p.count/max*100).toFixed(0)}%"></div></div></td>
+        </tr>
+      `).join('');
+      el.innerHTML = `<table><thead><tr><th>Path</th><th style="text-align:right;">Count</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function renderUsers(users) {
+      const el = $('usersTable');
+      if (!users.length) { el.innerHTML = '<div class="empty-state">No users yet</div>'; return; }
+      let rows = users.map(u => {
+        const pct = u.quota > 0 ? ((u.used / u.quota) * 100).toFixed(1) : 0;
+        const remaining = u.quota - u.used;
+        const status = u.active ? '<span style="color:var(--success);">Active</span>' : '<span style="color:var(--danger);">Disabled</span>';
+        return `<tr>
+          <td>${u.id}</td>
+          <td>${u.label}</td>
+          <td>${u.token}</td>
+          <td style="text-align:right;">${formatNum(u.quota)}</td>
+          <td style="text-align:right;">${formatNum(u.used)}</td>
+          <td style="text-align:right;">${formatNum(remaining)}</td>
+          <td style="text-align:right;">${pct}%</td>
+          <td>${status}</td>
+          <td>${u.created_at ? u.created_at.replace('T',' ').slice(0,16) : '--'}</td>
+        </tr>`;
+      }).join('');
+      el.innerHTML = `<table><thead><tr><th>ID</th><th>Label</th><th>Token</th><th style="text-align:right;">Quota</th><th style="text-align:right;">Used</th><th style="text-align:right;">Remaining</th><th style="text-align:right;">%</th><th>Status</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function renderAll(stats, recent, usersData) {
+      renderCards(stats);
+      renderCharts(stats);
+      renderRecent(recent);
+      renderTopPaths(stats.top_paths || []);
+      var users = usersData && usersData.users ? usersData.users : [];
+      renderUsers(users);
+      var now = new Date();
+      $('lastUpdate').innerHTML = 'Last updated: ' + now.toLocaleTimeString();
+      $('clock').textContent = now.toLocaleTimeString();
+    }
+
+    function refresh() {
+      $('lastUpdate').innerHTML = 'Refreshing...';
+      Promise.all([
+        API('/admin/stats'),
+        API('/admin/recent?limit=50'),
+        API('/admin/users')
+      ]).then(function(results) {
+        renderAll(results[0], results[1], results[2]);
+      }).catch(function(e) {
+        $('lastUpdate').innerHTML = 'Error: ' + e.message;
+      });
+    }
+
+    // Initial load
+    refresh();
+
+    // Auto-refresh every 15 seconds
+    setInterval(refresh, 15000);
+
+    // Clock update
+    setInterval(function() {
+      $('clock').textContent = new Date().toLocaleTimeString();
+    }, 1000);
+  </script>
+</body>
+</html>
